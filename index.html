@@ -1,0 +1,197 @@
+<!doctype html>
+<html>
+<head>
+	<title>Blank Canvas</title>
+
+	<script type="text/javascript" src="http://code.jquery.com/jquery-1.9.1.js"></script>
+
+	<style type="text/css">
+		body { background: black; padding: 0; margin: 0; overflow: hidden; }
+		canvas { border-radius: 10px; background: white; }
+
+		#palette { width: 100%; height: 60px; position: absolute; bottom: 0; background: #eee; border-radius: 10px; }
+		#palette div { width: 50px; height: 50px; text-align: center; margin: 5px auto 0 auto; display: inline-block; border: 5px solid black; box-sizing: border-box; -moz-box-sizing: border-box; border-radius: 25px; cursor: pointer; vertical-align: top; }
+		#palette div:first-child { margin-left: 5px; }
+		#palette div:last-child { margin-right: 5px; }
+		#palette div.selected { border-color: gold; }
+		#palette #red { background-color: red; }
+		#palette #blue { background-color: blue; }
+		#palette #yellow { background-color: yellow; }
+		#palette #green { background-color: green; }
+		#palette #orange { background-color: orange; }
+		#palette #purple { background-color: purple; }
+		#palette #white { background-color: white; }
+		#palette #black { background-color: black; }
+
+		#palette #erase { float: right; font-size: 30px; line-height: 45px; }
+	</style>
+
+	<script type="text/javascript">
+	window.Input = {
+		get: function (e, pointerOffset) {
+			// Offsets the input slightly to correct for mouse pointer point
+			pointerOffset = pointerOffset ? 10 : 0;
+
+			if (e.type.indexOf('mouse') !== -1) {
+				return {
+					'x': e.pageX - pointerOffset,
+					'y': e.pageY - pointerOffset
+				};
+			} else {
+				return {
+					'x': e.touches[0].pageX,
+					'y': e.touches[0].pageY
+				};
+			}
+		},
+
+		distance: function (point1, point2) {
+			return Math.sqrt(Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y, 2));
+		},
+
+		slope: function (point1, point2) {
+			return (point2.y - point1.y) / (point2.x - point1.x);
+		}
+	};
+
+	$(function () {
+		var canvas,
+			context,
+			previousPoint,
+			previousRadius;
+
+		canvas = document.getElementById('canvas');
+
+		// Get canvas context
+		context = canvas.getContext('2d');
+
+		resize();
+
+		// Set default color/alpha
+		context.fillStyle = "red";
+		// context.globalAlpha = 0.9;
+		// context.globalCompositeOperation = "lighter";
+
+		/* Start drawing */ 
+		function start(e) {
+			$('#canvas').on('mousemove', move);
+
+			// Store the first input point
+			previousPoint = Input.get(e, true);
+		}
+
+		/* Draw */
+		function move(e) {
+			var distance,
+				i,
+				point,
+				radius,
+				step;
+
+			point = Input.get(e, true);
+			distance = Input.distance(point, previousPoint);
+
+			// Size of the line is proportional to the distance between drawing points
+			radius = Math.sqrt(distance);
+
+			if (radius < 2.5) {
+				radius = 2.5;
+			}
+
+			if (previousRadius === undefined) {
+				previousRadius = radius;
+			}
+
+			// Start drawing
+			context.beginPath();
+
+			// Lerp between the two points
+			step = {
+				'x': (previousPoint.x - point.x) / distance,
+				'y': (previousPoint.y - point.y) / distance,
+				'radius': (previousRadius - radius) / distance
+			};
+
+			i = distance;
+			while (i > 0) {
+				context.arc(point.x + step.x * i, point.y + step.y * i, radius + step.radius * i, 0, Math.PI * 2, false);	// x, y, radius, start angle, end angle, counterclockwise
+				i -= 1;
+			}
+
+			context.fill();
+
+			// Store the previous interaction point
+			previousPoint = point;
+			previousRadius = radius;
+		}
+
+		/* Stop drawing */
+		function end(e) {
+			$('#canvas').off('mousemove', move);
+
+			// Allow for an "undo" feature
+			context.save();
+		}
+
+		/* Pick colors */
+		function changeColor(e) {
+			var button,
+				color;
+
+			button = $(e.target);
+			color = button.attr('id');
+
+			context.fillStyle = color;
+
+			button.siblings().removeClass('selected');
+			button.addClass('selected');
+		}
+
+		/* Erase */
+		function erase (e) {
+			canvas.width = canvas.width;
+		}
+
+		/* Resize */
+		function resize (e) {
+			// Set the width/height of the canvas element
+			$('#canvas').attr('width', $(window).width());
+			$('#canvas').attr('height', $(window).height());
+		}
+
+		// Event listeners to start/stop drawing
+		$('#canvas').on('mousedown', start);
+		$('#canvas').on('mouseup', end);
+
+		// Touchscreens
+		$('#canvas').on('touchstart', start);
+		$('#canvas').on('touchmove', move);
+		$('#canvas').on('touchend', end);
+
+		// Change color
+		$('#palette .color').on('click', changeColor);
+
+		// Erase
+		$('#erase').on('click', erase);
+
+		// Resize
+		$(window).on('resize', resize);
+	});
+	</script>
+</head>
+<body>
+	<canvas id="canvas"></canvas>
+	<div id="palette">
+		<div id="red" class="color selected"></div>
+		<div id="blue" class="color"></div>
+		<div id="yellow" class="color"></div>
+		<div id="green" class="color"></div>
+		<div id="orange" class="color"></div>
+		<div id="purple" class="color"></div>
+		<div id="white" class="color"></div>
+		<div id="black" class="color"></div>
+
+		<div id="erase">&#x2672;</div>
+	</div>
+</body>
+</html>
